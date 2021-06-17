@@ -1,6 +1,6 @@
 # update-motd.d
 
-This is an edited and updated customer repository based off of https://github.com/yboetz/motd and a few things of my own.
+This is an edited and updated custom repository based off of https://github.com/yboetz/motd and a few things of my own.
 
 To properly use these you need the following dependents.
 
