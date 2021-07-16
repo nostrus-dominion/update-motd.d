@@ -9,6 +9,5 @@ To properly use these you need the following dependents.
 * fortune
 * cowsay
 * hddtemp
-* update-motd
 
 You can easily find all of these with your distributions package manager.
