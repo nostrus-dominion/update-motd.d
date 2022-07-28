@@ -30,6 +30,7 @@ print_color() {
 
 print_columns() {
     [ -z "$2" ] && return
+    echo -e ""
     paste <(echo -e "${CA}$1${1:+:}${CN}") <(echo -e "$2")
 }
 
@@ -47,8 +48,6 @@ elif type apt >/dev/null 2>&1; then
 else
     updates="N/A"
 fi
-
-echo -e ""
 
 text="$(print_color "$updates available" $updates 1 50)"
 
