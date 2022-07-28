@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+# PULLED THIS FROM GITHUB
+# https://github.com/bcyran/fancy-motd
+# RIPPED OUT THE UPDATE MODULE AND
+# REARRANGED IT'S GUTS
+
+set -eu
+#source "$BASE_DIR/framework.sh"
+
+# Colors
+CA="${CA:-\e[34m}"  # Accent
+CO="${CO:-\e[32m}"  # Ok
+CW="${CW:-\e[33m}"  # Warning
+CE="${CE:-\e[31m}"  # Error
+CN="${CN:-\e[0m}"   # None
+
+print_color() {
+    local out=""
+    if (( $(bc -l <<< "$2 < $3") )); then
+        out+="${CO}"
+    elif (( $(bc -l <<< "$2 >= $3 && $2 < $4") )); then
+        out+="${CW}"
+    else
+        out+="${CE}"
+    fi
+    out+="$1${CN}"
+    echo "$out"
+}
+
+print_columns() {
+    [ -z "$2" ] && return
+    paste <(echo -e "${CA}$1${1:+:}${CN}") <(echo -e "$2")
+}
+
+
+if type checkupdates >/dev/null 2>&1; then
+    updates=$(checkupdates 2> /dev/null | wc -l )
+    if type yay >/dev/null 2>&1; then
+        updates_aur=$(yay -Qum 2> /dev/null | wc -l)
+        updates=$(($updates + $updates_aur))
+    fi
+elif type dnf >/dev/null 2>&1; then
+    updates=$(dnf check-update --quiet | grep -v "^$" | wc -l)
+elif type apt >/dev/null 2>&1; then
+    updates=$(apt list --upgradable 2>/dev/null | grep upgradable | wc -l)
+else
+    updates="N/A"
+fi
+
+text="$(print_color "$updates available" $updates 1 50)"
+
+print_columns "\e[0;37m UPDATES AVAILABLE" "$text"
