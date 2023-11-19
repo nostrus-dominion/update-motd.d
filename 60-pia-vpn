@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Colors
+green="\e[1;32m"
+reset="\033[0m"
+
+# Function to get information or display "Not available" if empty
+get_info() {
+    local info=$(piactl get "$1")
+    echo "${info:-Not available}"
+}
+
+# Get connection type
+vpn_region=$(get_info region)
+
+# Get the VPN IP address
+vpn_ip=$(get_info vpnip)
+
+# Get the PUB IP address
+pub_ip=$(get_info pubip)
+
+# Get the Port Forwarding details
+port_forwarding=$(get_info portforward)
+
+# Display the MOTD
+echo ""
+echo "VPN INFORMATION:"
+echo -e "  REGION: ${green}$vpn_region${reset}"
+echo -e "  VPN IP: ${green}$vpn_ip${reset}"
+echo -e "  PUB IP: ${green}$pub_ip${reset}"
+echo -e "  PORT #: ${green}$port_forwarding${reset}"
