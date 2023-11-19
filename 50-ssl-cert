@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Set the path to the Certbot configuration directory
+certbot_config_dir="/etc/letsencrypt/live"
+
+# Set color variables
+green="\e[32m"
+yellow="\e[33m"
+red="\e[31m"
+blue='\033[0;34m'
+reset="\e[0m"
+
+# Array of domains to include
+## EDIT THIS TO HAVE THE DOMAINS YOU WISH TO SEE ON MOTD
+included_domains=("example.com" "subdomain.example.com" "example-again.com" "example.net")
+
+# Function to display certificate information with color
+display_cert_info() {
+    cert="$1"
+    expiry_date=$(openssl x509 -enddate -noout -in "$cert" | cut -d= -f2)
+    domain=$(basename $(dirname "$cert"))
+    current_date=$(date +%s)
+    expiry_date_seconds=$(date -d "$expiry_date" +%s)
+    
+    # Calculate days until expiry
+    days_until_expiry=$(( (expiry_date_seconds - current_date) / 86400 ))
+
+    # Check if the current domain is in the included domains list
+    if [[ " ${included_domains[@]} " =~ " $domain " ]]; then
+        # Set color based on the remaining days until expiry
+        if [ $days_until_expiry -gt 7 ]; then
+            color="$green"  # Green
+        elif [ $days_until_expiry -gt 0 ]; then
+            color="$yellow"  # Yellow
+        else
+            color="$red"  # Red
+        fi
+
+        echo -e "Domain Name: ${blue}$domain${reset}"
+        echo -e "Expiry Date: ${color}$expiry_date${reset}"
+        echo -e "Renew  Days: $days_until_expiry"
+        echo "------------------------------------------------------------"
+    fi
+}
+
+# Check if the directory exists
+if [ -d "$certbot_config_dir" ]; then
+    # Loop through each domain in the Certbot configuration directory
+    for domain_dir in "$certbot_config_dir"/*; do
+        cert_file="$domain_dir/fullchain.pem"
+        
+        # Check if the file is a regular file
+        if [ -f "$cert_file" ]; then
+            display_cert_info "$cert_file"
+        fi
+    done
+else
+    echo "Certbot configuration directory not found: $certbot_config_dir"
+fi
