@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# /!\ Need docker binary
 
 # Color variables
 green='\033[0;32m'  # Green color for circle (o)
 red='\033[0;31m'    # Red color for x
 reset='\033[0m'     # Reset color
-
-# docker containers:
-#  o alpine  x nginx
-#  o blog    x git
 
 columns=2
 filter='nothing'  # excluded containers separated by |
