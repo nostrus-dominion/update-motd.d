@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# /!\ Need docker binary
+
+# Color variables
+green='\033[0;32m'  # Green color for circle (o)
+red='\033[0;31m'    # Red color for x
+reset='\033[0m'     # Reset color
+
+# docker containers:
+#  o alpine  x nginx
+#  o blog    x git
+
+columns=2
+filter='nothing'  # excluded containers separated by |
+
+mapfile -t containers < <(docker ps -a --format "{{.Names}} {{.Status}}" | awk '!/^('${filter}')/{print $1,$2}' | sort)
+
+out=''
+for i in "${!containers[@]}"; do
+    IFS=" " read name status <<< "${containers[$i]}"
+    # Use color variables for circle (o) and x
+    if [[ "${status}" == 'Up' ]]; then
+        status="${green}o${reset}"
+    else
+        status="${red}x${reset}"
+    fi
+    out+="${status}|${name}|"
+    (( $(( (i+1) % columns )) == 0 )) && out+='\n'
+done
+
+if [[ -z "${out}" ]]; then
+    out='none'
+fi
+out+='\n'
+
+echo
+echo 'DOCKER CONTAINERS:'
+echo -e "${out}" | column -ts '|' | sed -e 's/^/  /'
