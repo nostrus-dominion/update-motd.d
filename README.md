@@ -9,6 +9,8 @@ To properly use these you need the following dependents.
 * fortune
 * cowsay
 * smartmontools
+* Docker
+* LXC
 * bc (some distros don't have this installed)
 * a Private Internet Acccess account
 
