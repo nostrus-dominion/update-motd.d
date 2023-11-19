@@ -8,7 +8,7 @@ To properly use these you need the following dependents.
 * lolcat
 * fortune
 * cowsay
-* hddtemp
+* smartmontools
 * bc (some distros don't have this installed)
 
 You can easily find all of these with your distributions package manager.
