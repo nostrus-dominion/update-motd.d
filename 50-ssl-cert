@@ -45,6 +45,10 @@ display_cert_info() {
 
 # Check if the directory exists
 if [ -d "$certbot_config_dir" ]; then
+    # Print the header
+    echo ""
+    echo "CURRENT CERTIFICATES IN USE:"
+    echo "------------------------------------------------------------"
     # Loop through each domain in the Certbot configuration directory
     for domain_dir in "$certbot_config_dir"/*; do
         cert_file="$domain_dir/fullchain.pem"
