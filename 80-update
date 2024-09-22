@@ -8,11 +8,11 @@
 set -eu
 
 # Colors
-blue="${blue:-\e[34m}"    # Accent (blue)
-green="${green:-\e[1;32m}"  # Ok (bright green)
-yellow="${yellow:-\e[33m}"  # Warning (yellow)
-red="${red:-\e[31m}"        # Error (red)
-reset="${reset:-\e[0m}"     # None (reset)
+green=$(tput setaf 2)
+yellow=$(tput setaf 3)
+red=$(tput setaf 1)
+blue=$(tput setaf 4)
+reset=$(tput sgr0)
 
 print_color() {
     local out=""

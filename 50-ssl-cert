@@ -4,11 +4,11 @@
 certbot_config_dir="/etc/letsencrypt/live"
 
 # Set color variables
-green="\e[32m"
-yellow="\e[33m"
-red="\e[31m"
-blue='\033[0;34m'
-reset="\e[0m"
+green=$(tput setaf 2)
+yellow=$(tput setaf 3)
+red=$(tput setaf 1)
+blue=$(tput setaf 4)
+reset=$(tput sgr0)
 
 # Array of domains to include
 ## EDIT THIS TO HAVE THE DOMAINS YOU WISH TO SEE ON MOTD
@@ -30,7 +30,7 @@ display_cert_info() {
         # Set color based on the remaining days until expiry
         if [ $days_until_expiry -gt 7 ]; then
             color="$green"  # Green
-        elif [ $days_until_expiry -gt 0 ]; then
+        elif [ $days_until_expiry -gt 2 ]; then
             color="$yellow"  # Yellow
         else
             color="$red"  # Red
