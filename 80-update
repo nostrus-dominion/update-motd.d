@@ -50,3 +50,4 @@ fi
 text="$(print_color "$updates available" "$updates" 1 50)"
 
 print_columns "\e[0;37mUPDATES AVAILABLE" "$text"
+echo ""
