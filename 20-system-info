@@ -39,6 +39,11 @@ IFS=" " read used avail total <<<$(free -htm | grep "Mem" | awk {'print $3,$7,$2
 # get swap usage
 IFS=" " read swap_used swap_total <<<$(free -htm | grep "Swap" | awk {'print $3,$2'})
 
+# Get current day, date, and time
+current_datetime=$(date +"%A, %B %d, %Y %T")
+echo -e "${reset}  Date/Time...: ${green}$current_datetime${reset}"
+echo ""
+
 echo -e "${reset}  Distro......: ${reset}$(cat /etc/*release | grep "PRETTY_NAME" | cut -d "=" -f 2- | sed 's/"//g')
 ${reset}  Kernel......: ${reset}$(uname -sr)
 ${reset}  Uptime......: ${reset}$(uptime -p)
