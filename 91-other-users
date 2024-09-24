@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Shows all other logged in users as this initalizes before you login
+
+echo ""
+echo "logged in users:"
+echo "  $(who|sed -e ':a;N;$!ba;s/\n/\n  /g')"
+echo ""
