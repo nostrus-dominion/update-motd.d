@@ -7,30 +7,45 @@ red=$(tput setaf 1)
 reset=$(tput sgr0) # No Color
 
 # Function to check disk status and display appropriate color
-check_disk_status() {
+checkDiskStatus() {
     disk="$1"
-    status=$(sudo smartctl -H $disk | awk '/test result/ {print $NF}')
+    diskStatus=$(sudo smartctl -H $disk | awk '/test result/ {print $NF}')
+    diskTemp=$(sudo smartctl -A $disk | awk '/diskTemp_Celsius|diskTemp_Internal/ {print $10}')
 
-    if [ "$status" == "PASSED" ]; then
-        echo -e "${green}OK${reset}"
-    elif [ "$status" == "FAILED!" ]; then
-        echo -e "${red}FAIL${reset}"
+    # Sets diskTemp to 0 if it's not a valid number
+    if ! [[ "$diskTemp" =~ ^[0-9]+$ ]]; then
+        diskTemp=00
+    fi
+
+    # Set the diskTemp color based on the thresholds
+    if [ "$diskTemp" -ge 1 ] && [ "$diskTemp" -le 50 ]; then
+        tempColor=$green
+    elif [ "$diskTemp" -ge 51 ] && [ "$diskTemp" -le 60 ]; then
+        tempColor=$yellow
     else
-        echo -e "${yellow}WARN${reset}"
+        tempColor=$red
+    fi
+
+    if [ "$diskStatus" == "PASSED" ]; then
+        echo -e "${green}OK${reset} (${tempColor}${diskTemp}°C${reset})"
+    elif [ "$diskStatus" == "FAILED!" ]; then
+        echo -e "${red}FAIL${reset} (${tempColor}${diskTemp}°C${reset})"
+    else
+        echo -e "${yellow}WARN${reset} (${tempColor}${diskTemp}°C${reset})"
     fi
 }
 
-# Display disk information and status with aligned columns in groups of 4
+# Display disk information and status with aligned columns in groups of 3
 echo "" # blank
 echo -e "DISK HEALTH [${green}OK${reset}/${yellow}WARN${reset}/${red}FAIL${reset}]"
 count=0
 for disk in $(lsblk -o NAME -nl | grep -E '^sd[a-z]$|^nvme[0-9]n[0-9]$|^mmcblk[0-9]$|^xvd[a-z]$'); do
-    status=$(check_disk_status "/dev/$disk")
-    printf " %-11s%s" "$disk" "$status"
+    diskStatus=$(checkDiskStatus "/dev/$disk")
+    printf " %-11s%s" "$disk" "$diskStatus"
     ((count++))
 
-    # Add a newline after every disk except the last one
-    if [ $count -lt 4 ]; then
+    # Add a newline after every 3 disks
+    if [ $count -lt 3 ]; then
         echo -n "   "
     else
         echo
@@ -38,7 +53,7 @@ for disk in $(lsblk -o NAME -nl | grep -E '^sd[a-z]$|^nvme[0-9]n[0-9]$|^mmcblk[0
     fi
 done
 
-# Add a newline if the last group doesn't have 4 disks
+# Add a newline if the last group doesn't have 3 disks
 if [ $count -ne 0 ]; then
     echo
 fi
