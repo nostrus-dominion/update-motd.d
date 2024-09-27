@@ -7,31 +7,31 @@ red=$(tput setaf 1)
 reset=$(tput sgr0) # No Color
 
 # Function to check disk status and display appropriate color
-checkDiskStatus() {
+check_disk_status() {
     disk="$1"
-    diskStatus=$(sudo smartctl -H $disk | awk '/test result/ {print $NF}')
-    diskTemp=$(sudo smartctl -A $disk | awk '/diskTemp_Celsius|diskTemp_Internal/ {print $10}')
+    status=$(sudo smartctl -H $disk | awk '/test result/ {print $NF}')
+    temperature=$(sudo smartctl -A $disk | awk '/Temperature_Celsius|Temperature_Internal/ {print $10}')
 
-    # Sets diskTemp to 0 if it's not a valid number
-    if ! [[ "$diskTemp" =~ ^[0-9]+$ ]]; then
-        diskTemp=00
+    # Set temperature to 0 if it's not a valid number
+    if ! [[ "$temperature" =~ ^[0-9]+$ ]]; then
+        temperature=00
     fi
 
-    # Set the diskTemp color based on the thresholds
-    if [ "$diskTemp" -ge 1 ] && [ "$diskTemp" -le 50 ]; then
-        tempColor=$green
-    elif [ "$diskTemp" -ge 51 ] && [ "$diskTemp" -le 60 ]; then
-        tempColor=$yellow
+    # Set the temperature color based on the thresholds
+    if [ "$temperature" -ge 1 ] && [ "$temperature" -le 50 ]; then
+        temp_color=$green
+    elif [ "$temperature" -ge 51 ] && [ "$temperature" -le 60 ]; then
+        temp_color=$yellow
     else
-        tempColor=$red
+        temp_color=$red
     fi
 
-    if [ "$diskStatus" == "PASSED" ]; then
-        echo -e "${green}OK${reset} (${tempColor}${diskTemp}°C${reset})"
-    elif [ "$diskStatus" == "FAILED!" ]; then
-        echo -e "${red}FAIL${reset} (${tempColor}${diskTemp}°C${reset})"
+    if [ "$status" == "PASSED" ]; then
+        echo -e "${green}OK${reset} (${temp_color}${temperature}°C${reset})"
+    elif [ "$status" == "FAILED!" ]; then
+        echo -e "${red}FAIL${reset} (${temp_color}${temperature}°C${reset})"
     else
-        echo -e "${yellow}WARN${reset} (${tempColor}${diskTemp}°C${reset})"
+        echo -e "${yellow}WARN${reset} (${temp_color}${temperature}°C${reset})"
     fi
 }
 
@@ -40,8 +40,8 @@ echo "" # blank
 echo -e "DISK HEALTH [${green}OK${reset}/${yellow}WARN${reset}/${red}FAIL${reset}]"
 count=0
 for disk in $(lsblk -o NAME -nl | grep -E '^sd[a-z]$|^nvme[0-9]n[0-9]$|^mmcblk[0-9]$|^xvd[a-z]$'); do
-    diskStatus=$(checkDiskStatus "/dev/$disk")
-    printf " %-11s%s" "$disk" "$diskStatus"
+    status=$(check_disk_status "/dev/$disk")
+    printf " %-11s%s" "$disk" "$status"
     ((count++))
 
     # Add a newline after every 3 disks
