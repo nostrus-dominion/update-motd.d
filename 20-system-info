@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Define color variables
-green=$(tput setaf 2)
-reset=$(tput sgr0)
+# Set colors for better visibility
+green='\033[0;32m'
+reset='\033[0m'
 
 # get processor information
 processor_name=$(grep "model name" /proc/cpuinfo | cut -d ' ' -f3- | awk {'print $0'} | head -1)

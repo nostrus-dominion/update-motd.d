@@ -2,9 +2,9 @@
 
 logfile='/var/log/fail2ban.log*'
 
-#Color Variables
-green=$(tput setaf 2)
-reset=$(tput sgr0)
+# Set colors for better visibility
+green='\033[0;32m'
+reset='\033[0m'
 
 # The actual work
 mapfile -t lines < <(grep -hioP '(\[[a-z-]+\]) ?(?:restore)? (ban|unban)' $logfile | sort | uniq -c)

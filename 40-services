@@ -3,10 +3,10 @@
 # set column width
 COLUMNS=3
 
-# colors
-green=$(tput setaf 2)
-red=$(tput setaf 1)
-reset=$(tput sgr0)
+# Set colors for better visibility
+green='\033[0;32m'
+red='\033[0;31m'
+reset='\033[0m'
 
 ## EDIT YOUR SERVICES HERE
 services=("nginx" "smbd" "lxd" "ufw")

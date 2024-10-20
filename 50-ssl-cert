@@ -3,12 +3,12 @@
 # Set the path to the Certbot configuration directory
 certbot_config_dir="/etc/letsencrypt/live"
 
-# Set color variables
-green=$(tput setaf 2)
-yellow=$(tput setaf 3)
-red=$(tput setaf 1)
-blue=$(tput setaf 4)
-reset=$(tput sgr0)
+# Set colors for better visibility
+green='\033[0;32m'
+yellow='\033[0;33m'
+red='\033[0;31m'
+cyan='\033[0;36m'
+reset='\033[0m'
 
 # Array of domains to include
 ## EDIT THIS TO HAVE THE DOMAINS YOU WISH TO SEE ON MOTD
@@ -36,7 +36,7 @@ display_cert_info() {
             color="$red"  # Red
         fi
 
-        echo -e "Domain Name: ${blue}$domain${reset}"
+        echo -e "Domain Name: ${cyan}$domain${reset}"
         echo -e "Expiry Date: ${color}$expiry_date${reset}"
         echo -e "Renew  Days: $days_until_expiry"
         echo "------------------------------------------------------------"

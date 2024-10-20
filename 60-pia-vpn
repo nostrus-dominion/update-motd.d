@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Colors
-green=$(tput setaf 2)
-reset=$(tput sgr0)
+# Set colors for better visibility
+green='\033[0;32m'
+reset='\033[0m'
 
 # Function to get information or display "Not available" if empty
 get_info() {

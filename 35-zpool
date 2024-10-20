@@ -6,11 +6,11 @@ warn_usage=75
 bar_width=50
 
 # Set colors for better visibility
-green=$(tput setaf 2)
-yellow=$(tput setaf 3)
-red=$(tput setaf 1)
-dim=$(tput dim)
-reset=$(tput sgr0) # No Color
+green='\033[0;32m'
+yellow='\033[0;33m'
+red='\033[0;31m'
+dim='\033[2m'
+reset='\033[0m'
 
 # zpool status
 printf "\nzpool status:\n"

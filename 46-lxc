@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# Color variables
-green=$(tput setaf 2)  # Green color for circle (o)
-red=$(tput setaf 1)    # Red color for x
-reset=$(tput sgr0)     # Reset color
+# Set colors for better visibility
+green='\033[0;32m'
+red='\033[0;31m'
+reset='\033[0m'
 
 columns=2
 filter='nothing'  # excluded containers separated by |

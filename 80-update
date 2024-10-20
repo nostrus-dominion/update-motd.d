@@ -7,12 +7,12 @@
 
 set -eu
 
-# Colors
-green=$(tput setaf 2)
-yellow=$(tput setaf 3)
-red=$(tput setaf 1)
-blue=$(tput setaf 4)
-reset=$(tput sgr0)
+# Set colors for better visibility
+green='\033[0;32m'
+yellow='\033[0;33m'
+red='\033[0;31m'
+blue='\033[0;34m'
+reset='\033[0m'
 
 print_color() {
     local out=""
