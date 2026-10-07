@@ -1,0 +1,24 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Hostname banner and machine role
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+name=$(hostname -s)
+if [[ $MOTD_BANNER == true ]] && command -v figlet >/dev/null 2>&1; then
+    banner=$(motd_run figlet -f "$MOTD_FIGLET_FONT" -w "$MOTD_FIGLET_WIDTH" "$name") || banner=$name
+    printf '\n%s%s%s\n' "$CA" "$banner" "$CN"
+else
+    print_columns "Hostname" "$name"
+fi
+[[ -z $MOTD_ROLE ]] || print_columns "Role" "$MOTD_ROLE"

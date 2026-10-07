@@ -1,0 +1,17 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Docker container state and health
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_containers docker

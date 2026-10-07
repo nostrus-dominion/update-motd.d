@@ -1,0 +1,27 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: ZFS pool capacity and usage bars
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need zpool || exit 0
+records=$(motd_run zpool list -Hp -o name,capacity,size,alloc,free) || exit 1
+text=""
+while read -r pool percentage total used available; do
+    [[ -n $pool ]] || continue
+    percentage=${percentage%\%}
+    motd_uint "$percentage" || continue
+    append_line text "$pool: $(human_bytes "$used") used / $(human_bytes "$total") total"
+    append_line text "$(print_bar "$percentage")"
+done <<< "$records"
+print_columns "ZFS usage" "$text"

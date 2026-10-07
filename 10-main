@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# One login entry; run-parts does not recurse into modules/.
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+exec "$script_dir/bin/motd" "$@"

@@ -1,0 +1,135 @@
+#!/bin/bash
+
+## Version 0.4.0
+## Configurable Nostrus Dominion MOTD preview and login renderer.
+
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+MOTD_FRAMEWORK="$script_dir/../lib/framework.sh"
+module_dir="$script_dir/../modules"
+export MOTD_FRAMEWORK
+export PATH="${PATH:-/usr/bin:/bin}:/usr/games"
+
+usage() {
+    cat <<'EOF'
+Usage: motd [options]
+
+  --config FILE   Read a different machine configuration.
+  --list          List available modules and whether each is enabled.
+  --module NAME   Preview one module, including a disabled module.
+  --all           Preview every available module.
+  --plain         Disable colors.
+  --no-cache      Collect fresh results.
+  --debug         Show dependency, command, and timeout errors on stderr.
+  -h, --help      Show this help.
+EOF
+}
+
+mode=normal
+selected_module=""
+while (( $# )); do
+    case $1 in
+        --config|--module)
+            (( $# >= 2 )) || { printf 'ERROR: %s requires a value.\n' "$1" >&2; exit 2; }
+            case $1 in
+                --config) export MOTD_CONFIG_FILE=$2 MOTD_CONFIG_EXPLICIT=true ;;
+                --module) selected_module=$2; mode=single ;;
+            esac
+            shift 2
+            ;;
+        --list) mode=list; shift ;;
+        --all) mode=all; shift ;;
+        --plain) export MOTD_COLOR_OVERRIDE=false; shift ;;
+        --no-cache) export MOTD_CACHE_OVERRIDE=false; shift ;;
+        --debug) export MOTD_DEBUG=true; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) printf 'ERROR: Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+# shellcheck disable=SC1090
+source "$MOTD_FRAMEWORK"
+motd_need timeout awk numfmt sha256sum || exit 1
+motd_load_config || exit 2
+
+available=()
+for file in "$module_dir"/[0-9][0-9]-*; do
+    [[ -f $file && -x $file ]] && available+=("${file##*/}")
+done
+
+if [[ $mode == list ]]; then
+    for module in "${available[@]}"; do
+        status=disabled
+        motd_contains "$module" "${MOTD_MODULES[@]}" && status=enabled
+        description=$(sed -n 's/^# Description: //p' "$module_dir/$module")
+        printf '%-22s %-8s %s\n' "$module" "$status" "$description"
+    done
+    exit 0
+fi
+
+case $mode in
+    single) modules=("$selected_module"); export MOTD_FORCE_MODULE=true ;;
+    all) modules=("${available[@]}"); export MOTD_FORCE_MODULE=true ;;
+    *) modules=("${MOTD_MODULES[@]}") ;;
+esac
+for module in "${modules[@]}"; do
+    [[ $module =~ ^[0-9]{2}-[a-zA-Z0-9_-]+$ ]] &&
+        motd_contains "$module" "${available[@]}" ||
+        { motd_error "Unknown or nonexecutable module: $module"; exit 2; }
+done
+
+work_dir=$(mktemp -d)
+trap 'rm -rf -- "$work_dir"' EXIT
+cache_ready=false
+if [[ $MOTD_CACHE_ENABLED == true ]] &&
+    mkdir -p -- "$MOTD_CACHE_DIR" 2>/dev/null && [[ -w $MOTD_CACHE_DIR && -O $MOTD_CACHE_DIR ]]; then
+    cache_ready=true
+fi
+for module in "${modules[@]}"; do
+    output="$work_dir/output"
+    errors="$work_dir/errors"
+    ttl=${MOTD_CACHE_TTL[$module]:-0}
+    cache_file=""
+    if [[ $cache_ready == true ]] && (( ttl > 0 )); then
+        digest=$(
+            {
+                cat -- "$MOTD_FRAMEWORK" "$module_dir/$module"
+                for config in "$MOTD_CONFIG_FILE" "$MOTD_COLORS_FILE"; do
+                    [[ ! -r $config ]] || cat -- "$config"
+                done
+                printf '%s\n' "$MOTD_COLOR" "${MOTD_FORCE_MODULE:-false}"
+            } | sha256sum
+        )
+        cache_file="$MOTD_CACHE_DIR/$module.${digest%% *}.cache"
+        if [[ -f $cache_file ]]; then
+            modified=$(stat -c %Y -- "$cache_file")
+            age=$(( $(date +%s) - modified ))
+            if (( age >= 0 && age < ttl )); then
+                cat -- "$cache_file"
+                continue
+            fi
+        fi
+    fi
+    status=0
+    timeout --foreground "${MOTD_TIMEOUTS[$module]:-$MOTD_MODULE_TIMEOUT}s" \
+        "$module_dir/$module" > "$output" 2> "$errors" || status=$?
+    if [[ ${MOTD_DEBUG:-false} == true ]]; then
+        cat -- "$errors" >&2
+        (( status == 0 )) || motd_debug "$module exited with status $status."
+    fi
+    if (( status != 0 )); then
+        print_columns "$module" "${CW}Unavailable (exit $status)${CN}"
+        continue
+    fi
+    cat -- "$output"
+    if [[ -n $cache_file && -s $output ]]; then
+        temporary=$(mktemp "$MOTD_CACHE_DIR/.cache.XXXXXXXX") || continue
+        if cp -- "$output" "$temporary"; then
+            chmod 0600 -- "$temporary"
+            mv -f -- "$temporary" "$cache_file"
+        else
+            rm -f -- "$temporary"
+        fi
+    fi
+done

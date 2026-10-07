@@ -1,0 +1,34 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Configured filesystem usage and bars
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+text=""
+for path in "${MOTD_DISK_PATHS[@]}"; do
+    if [[ ! -e $path ]]; then
+        append_line text "${CW}$path: path unavailable${CN}"
+        continue
+    fi
+    if ! record=$(df -k --output=pcent,size,used,avail,target -- "$path"); then
+        append_line text "${CW}$path: filesystem unavailable${CN}"
+        continue
+    fi
+    record=${record#*$'\n'}
+    read -r percentage total used available mount <<< "$record"
+    percentage=${percentage%\%}
+    motd_uint "$percentage" || continue
+    append_line text "$path (mounted at $mount): $(human_bytes "$((used * 1024))") used / $(human_bytes "$((total * 1024))")"
+    append_line text "$(print_bar "$percentage")"
+done
+print_columns "Disk space" "$text"

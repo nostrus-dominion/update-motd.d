@@ -1,0 +1,32 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Configured HTTP application endpoints
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need curl || exit 0
+text=""
+while IFS= read -r label; do
+    [[ -n $label ]] || continue
+    code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+        --connect-timeout "$MOTD_HTTP_TIMEOUT" --max-time "$MOTD_HTTP_TIMEOUT" \
+        -- "${MOTD_ENDPOINTS[$label]}") || code=000
+    state=unavailable
+    if [[ $code =~ ^[23][0-9][0-9]$ ]]; then
+        state=healthy
+    elif [[ $code =~ ^[45][0-9][0-9]$ ]]; then
+        state=failed
+    fi
+    append_line text "$(print_status "$label" "$state") (HTTP $code)"
+done < <(printf '%s\n' "${!MOTD_ENDPOINTS[@]}" | LC_ALL=C sort)
+print_columns "HTTP checks" "$text"

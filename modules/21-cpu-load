@@ -1,0 +1,24 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: CPU model, logical CPU count, and normalized load
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need awk || exit 0
+model=$(awk -F ': *' '/^model name|^Hardware|^Model/ { print $2; exit }' "$MOTD_PROC_ROOT/cpuinfo")
+cpus=$(getconf _NPROCESSORS_ONLN)
+read -r load1 load5 load15 _ < "$MOTD_PROC_ROOT/loadavg"
+percentage=$(awk -v load="$load1" -v cpus="$cpus" 'BEGIN { printf "%.0f", load / cpus * 100 }')
+print_columns "CPU" "${model:-Unknown} ($cpus logical CPUs)"
+print_columns "Load" "$(print_color "$load1 / $load5 / $load15 (1 / 5 / 15 min)" \
+    "$percentage" "$MOTD_LOAD_WARN" "$MOTD_LOAD_CRIT")"

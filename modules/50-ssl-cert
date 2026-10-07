@@ -1,0 +1,47 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Certificate expiry for configured Certbot domains
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need openssl || exit 0
+[[ -d $MOTD_CERT_DIR ]] || exit 0
+domains=("${MOTD_CERT_DOMAINS[@]}")
+if (( ${#domains[@]} == 0 )); then
+    for directory in "$MOTD_CERT_DIR"/*; do
+        [[ -d $directory ]] && domains+=("${directory##*/}")
+    done
+fi
+now=$(date +%s)
+text=""
+for domain in "${domains[@]}"; do
+    cert="$MOTD_CERT_DIR/$domain/fullchain.pem"
+    expiry=$(motd_run openssl x509 -enddate -noout -in "$cert") || {
+        append_line text "${CW}$domain: certificate unavailable${CN}"
+        continue
+    }
+    expiry=${expiry#notAfter=}
+    seconds=$(date -d "$expiry" +%s) || continue
+    days=$(((seconds - now) / 86400))
+    if (( seconds <= now )); then
+        line="${CE}$domain: EXPIRED ($expiry)${CN}"
+    elif (( days <= MOTD_CERT_CRIT_DAYS )); then
+        line="${CE}$domain: $days days ($expiry)${CN}"
+    elif (( days <= MOTD_CERT_WARN_DAYS )); then
+        line="${CW}$domain: $days days ($expiry)${CN}"
+    else
+        line="${CO}$domain: $days days ($expiry)${CN}"
+    fi
+    append_line text "$line"
+done
+print_columns "Certificates" "$text"

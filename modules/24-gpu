@@ -1,0 +1,50 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: GPU names, NVIDIA metrics, and AMD utilization
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+text=""
+if command -v lspci >/dev/null 2>&1; then
+    devices=$(motd_run lspci) || devices=""
+    while IFS= read -r line; do
+        append_line text "${line#*controller: }"
+    done < <(awk '/VGA compatible controller:|3D controller:|Display controller:/' <<< "$devices")
+fi
+if command -v nvidia-smi >/dev/null 2>&1; then
+    readings=$(motd_run nvidia-smi \
+        --query-gpu=name,utilization.gpu,temperature.gpu,memory.used,memory.total \
+        --format=csv,noheader,nounits) || readings=""
+    while IFS=',' read -r name utilization temperature used total; do
+        [[ -n $name ]] || continue
+        utilization=${utilization// /}
+        temperature=${temperature// /}
+        used=${used// /}
+        total=${total// /}
+        append_line text "$name: $utilization% load, $(print_color "$temperature°C" \
+            "$temperature" "$MOTD_TEMP_WARN" "$MOTD_TEMP_CRIT"), $used / $total MiB VRAM"
+    done <<< "$readings"
+fi
+for file in "$MOTD_SYS_ROOT"/class/drm/card[0-9]*/device/gpu_busy_percent; do
+    [[ -r $file ]] || continue
+    read -r busy < "$file"
+    card=${file%/device/*}
+    append_line text "${card##*/}: $busy% GPU load"
+    device=${file%/*}
+    if [[ -r $device/mem_info_vram_used && -r $device/mem_info_vram_total ]]; then
+        read -r used < "$device/mem_info_vram_used"
+        read -r total < "$device/mem_info_vram_total"
+        append_line text "VRAM: $(human_bytes "$used") / $(human_bytes "$total")"
+    fi
+done
+print_columns "GPU" "$text"

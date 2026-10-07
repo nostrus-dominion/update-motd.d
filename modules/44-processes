@@ -1,0 +1,25 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Configured process name or command-pattern checks
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need pgrep || exit 0
+text=""
+while IFS= read -r label; do
+    [[ -n $label ]] || continue
+    state=inactive
+    pgrep -f -- "${MOTD_PROCESSES[$label]}" >/dev/null && state=running
+    append_line text "$(print_status "$label" "$state")"
+done < <(printf '%s\n' "${!MOTD_PROCESSES[@]}" | LC_ALL=C sort)
+print_columns "Processes" "$text"

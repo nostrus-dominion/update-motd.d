@@ -1,0 +1,25 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Distribution reboot-required flag
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+if [[ -f $MOTD_REBOOT_FILE ]]; then
+    print_columns "Reboot flag" "${CW}Reboot required${CN}"
+    if [[ -r $MOTD_REBOOT_FILE.pkgs ]]; then
+        packages=$(paste -sd ', ' -- "$MOTD_REBOOT_FILE.pkgs")
+        [[ -z $packages ]] || print_columns "" "$packages"
+    fi
+else
+    print_columns "Reboot flag" "No distribution reboot flag"
+fi

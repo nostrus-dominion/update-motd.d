@@ -1,0 +1,41 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Selected systemd, OpenRC, or SysV service states
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+text=""
+case $MOTD_SERVICE_PROVIDER in
+    none) exit 0 ;;
+    systemd) motd_systemd || exit 0 ;;
+    openrc) motd_need rc-service || exit 0 ;;
+    sysv) motd_need service || exit 0 ;;
+esac
+while IFS= read -r unit; do
+    [[ -n $unit ]] || continue
+    case $MOTD_SERVICE_PROVIDER in
+        systemd) state=$(motd_run systemctl is-active "$unit" 2>/dev/null || :) ;;
+        openrc|sysv)
+            if [[ $MOTD_SERVICE_PROVIDER == openrc ]]; then command=(rc-service "$unit" status)
+            else command=(service "$unit" status); fi
+            status=0
+            motd_run "${command[@]}" >/dev/null 2>&1 || status=$?
+            case $status in
+                0) state=running ;;
+                1|2|3) state=stopped ;;
+                *) state=unknown ;;
+            esac ;;
+    esac
+    append_line text "$(print_status "${MOTD_SERVICES[$unit]}" "${state:-unknown}")"
+done < <(printf '%s\n' "${!MOTD_SERVICES[@]}" | LC_ALL=C sort)
+print_columns "Services" "$text"

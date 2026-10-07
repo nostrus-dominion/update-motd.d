@@ -1,0 +1,20 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Recent sessions from the local login database
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need last || exit 0
+records=$(motd_run last -n "$MOTD_LAST_LOGIN_COUNT" -F -w) || exit 1
+text=$(awk 'NF && $1 != "wtmp" { print }' <<< "$records")
+print_columns "Recent logins" "${text:-No login records}"

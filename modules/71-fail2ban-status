@@ -1,0 +1,38 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Current Fail2Ban jail counters
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need fail2ban-client || exit 0
+status=$(motd_run fail2ban-client status) || exit 1
+jail_list=$(awk -F ': *' '/Jail list:/ { print $2 }' <<< "$status")
+IFS=',' read -r -a jails <<< "$jail_list"
+text=""
+for jail in "${jails[@]}"; do
+    jail=${jail//[[:space:]]/}
+    [[ -n $jail ]] || continue
+    report=$(motd_run fail2ban-client status "$jail") || {
+        append_line text "${CW}$jail: unavailable${CN}"
+        continue
+    }
+    counters=$(awk -F ': *' '
+        /Currently failed:/ { failed=$2 }
+        /Total failed:/ { total_failed=$2 }
+        /Currently banned:/ { banned=$2 }
+        /Total banned:/ { total_banned=$2 }
+        END { printf "%s failed (%s total), %s banned (%s total)", failed, total_failed, banned, total_banned }
+    ' <<< "$report")
+    append_line text "$jail: $counters"
+done
+print_columns "Fail2Ban" "${text:-No jails configured}"

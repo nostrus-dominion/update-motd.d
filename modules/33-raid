@@ -1,0 +1,50 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Linux software RAID arrays, degradation, and synchronization
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+[[ -r $MOTD_PROC_ROOT/mdstat ]] || exit 0
+text=""
+while IFS='|' read -r name level state bits action; do
+    [[ -n $name ]] || continue
+    health=unknown
+    if [[ $state != active ]]; then
+        health=inactive
+    elif [[ $bits == *_* ]]; then
+        health=degraded
+    elif [[ -n $bits ]]; then
+        health=healthy
+    fi
+    line="$(print_status "$name ($level)" "$health")${bits:+ [$bits]}"
+    [[ -z $action ]] || line+=" ${CW}$action${CN}"
+    append_line text "$line"
+done < <(awk '
+    function emit() {
+        if (name != "") printf "%s|%s|%s|%s|%s\n", name, level, state, bits, action
+    }
+    /^md[0-9]+[[:space:]]*:/ {
+        emit(); name=$1; state=$3; level="unknown"; bits=""; action=""
+        for (i=4; i<=NF; i++)
+            if ($i ~ /^(raid[0-9]+|linear|multipath|faulty)$/) level=$i
+        next
+    }
+    name != "" {
+        if (match($0, /\[[U_]+\]/)) bits=substr($0, RSTART+1, RLENGTH-2)
+        if ($0 ~ /(recovery|resync|reshape|check|repair)[[:space:]]*=/) {
+            action=$0; sub(/^[[:space:]]+/, "", action)
+        }
+    }
+    END { emit() }
+' "$MOTD_PROC_ROOT/mdstat")
+print_columns "RAID" "$text"

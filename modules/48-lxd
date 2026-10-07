@@ -1,0 +1,37 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: LXD container and virtual machine state
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need lxc || exit 0
+records=$(motd_run lxc list --columns ns --format csv) || {
+    print_columns "LXD" "${CW}Daemon unavailable or access denied${CN}"
+    exit 0
+}
+text=""; count=0
+seen=()
+while IFS=',' read -r name state; do
+    [[ -n $name ]] || continue
+    (( ${#MOTD_LXD_INSTANCES[@]} == 0 )) || motd_contains "$name" "${MOTD_LXD_INSTANCES[@]}" || continue
+    seen+=("$name")
+    motd_excluded "$name" && continue
+    [[ $MOTD_SHOW_STOPPED_CONTAINERS == true || $state == RUNNING ]] || continue
+    (( count < MOTD_CONTAINER_LIMIT )) || continue
+    append_line text "$(print_status "$name" "${state,,}")"
+    count=$((count + 1))
+done <<< "$records"
+for name in "${MOTD_LXD_INSTANCES[@]}"; do
+    motd_contains "$name" "${seen[@]}" || append_line text "$(print_status "$name" missing)"
+done
+print_columns "LXD" "${text:-No matching instances}"
