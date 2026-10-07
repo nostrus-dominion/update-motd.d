@@ -1,0 +1,30 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: System time synchronization and timezone
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_systemd || exit 0
+motd_need timedatectl || exit 0
+report=$(motd_run timedatectl show --property=NTPSynchronized --property=Timezone) || exit 1
+text=""
+while IFS='=' read -r key value; do
+    case $key in
+        NTPSynchronized)
+            if [[ $value == yes ]]; then state=healthy; else state=unknown; fi
+            append_line text "$(print_status "NTP synchronized ($value)" "$state")"
+            ;;
+        Timezone) append_line text "Timezone: $value" ;;
+    esac
+done <<< "$report"
+print_columns "Time sync" "$text"

@@ -1,0 +1,43 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: SMART health and temperature including NVMe
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need smartctl jq lsblk || exit 0
+devices=("${MOTD_SMART_DEVICES[@]}")
+if (( ${#devices[@]} == 0 )); then
+    mapfile -t devices < <(lsblk -dn -o PATH,TYPE | awk '$2 == "disk" { print $1 }')
+fi
+text=""
+for device in "${devices[@]}"; do
+    # smartctl uses a bitmask exit status; a failing health test can still
+    # produce valid JSON that must be inspected instead of discarded.
+    report=$(motd_run smartctl -j -H -A "$device") || :
+    status=$(jq -r '
+        if .smart_status.passed == true then "passed"
+        elif .smart_status.passed == false then "failed"
+        else "unavailable" end
+    ' <<< "$report") || status=unavailable
+    temperature=$(jq -r '.temperature.current //
+        .nvme_smart_health_information_log.temperature // empty' \
+        <<< "$report") || temperature=""
+    line=$(print_status "${device##*/}" "$status")
+    if [[ $temperature =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        line+=" ($(print_color "$temperature°C" "$temperature" "$MOTD_TEMP_WARN" "$MOTD_TEMP_CRIT"))"
+    else
+        line+=" (temperature unavailable)"
+    fi
+    append_line text "$line"
+done
+print_columns "Disk health" "$text"

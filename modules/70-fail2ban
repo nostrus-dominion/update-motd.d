@@ -1,0 +1,42 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Fail2Ban log history, including compressed rotations
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need zgrep || exit 0
+files=()
+for file in "$MOTD_FAIL2BAN_LOG"*; do
+    [[ -f $file && -r $file ]] && files+=("$file")
+done
+(( ${#files[@]} )) || exit 0
+# Log totals describe retained log history, not the live jail state.
+records=$(zgrep -hE '\[[^]]+\][[:space:]]+(Restore[[:space:]]+)?(Ban|Unban)[[:space:]]' \
+    "${files[@]}" || :)
+text=$(awk '
+    {
+        for (i=1; i<NF; i++) {
+            if ($i ~ /^\[[^]]+\]$/ && ($(i+1) == "Ban" || $(i+1) == "Unban" || $(i+1) == "Restore")) {
+                jail=$i; gsub(/[][]/, "", jail)
+                if ($(i+1) == "Unban") unbans[jail]++
+                else bans[jail]++
+            }
+        }
+    }
+    END {
+        for (jail in bans) seen[jail]=1
+        for (jail in unbans) seen[jail]=1
+        for (jail in seen) printf "%s: %d bans / restores, %d unbans\n", jail, bans[jail], unbans[jail]
+    }
+' <<< "$records" | LC_ALL=C sort)
+print_columns "Fail2Ban history" "${text:-No retained ban records}"

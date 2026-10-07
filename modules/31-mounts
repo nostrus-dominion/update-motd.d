@@ -1,0 +1,24 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Required mountpoints, including missing storage mounts
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need mountpoint || exit 0
+text=""
+for target in "${MOTD_REQUIRED_MOUNTS[@]}"; do
+    state=missing
+    mountpoint -q -- "$target" && state=mounted
+    append_line text "$(print_status "$target" "$state")"
+done
+print_columns "Required mounts" "$text"

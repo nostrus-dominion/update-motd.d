@@ -1,0 +1,30 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Top processes by CPU and memory without command arguments
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need ps || exit 0
+for metric in pcpu pmem; do
+    records=$(motd_run ps -eo pid=,comm=,"$metric"= --sort="-$metric") || exit 1
+    text=""
+    count=0
+    while read -r pid name usage; do
+        [[ -n $pid ]] || continue
+        append_line text "$name (PID $pid): $usage%"
+        count=$((count + 1))
+        (( count < MOTD_MAX_ITEMS )) || break
+    done <<< "$records"
+    if [[ $metric == pcpu ]]; then label="Top CPU"; else label="Top memory"; fi
+    print_columns "$label" "$text"
+done

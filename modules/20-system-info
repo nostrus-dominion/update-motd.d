@@ -1,0 +1,26 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Date, distribution, kernel, and uptime
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+distro="Unknown"
+if [[ -r /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    source /etc/os-release
+    distro=${PRETTY_NAME:-${NAME:-Unknown}}
+fi
+print_columns "Date / time" "$(date "+$MOTD_DATE_FORMAT")"
+print_columns "Distribution" "$distro"
+print_columns "Kernel" "$(uname -sr)"
+print_columns "Uptime" "$(uptime -p)"

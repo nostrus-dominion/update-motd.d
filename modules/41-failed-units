@@ -1,0 +1,27 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Failed systemd units
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_systemd || exit 0
+records=$(motd_run systemctl --no-pager --plain --no-legend --failed) || exit 1
+text=""
+count=0
+while read -r unit rest; do
+    [[ -n $unit ]] || continue
+    append_line text "${CE}$unit${CN}"
+    count=$((count + 1))
+    (( count < MOTD_MAX_ITEMS )) || { append_line text "Display limit: $MOTD_MAX_ITEMS"; break; }
+done <<< "$records"
+print_columns "Failed units" "${text:-${CO}None${CN}}"

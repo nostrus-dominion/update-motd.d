@@ -1,0 +1,28 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Optional fortune, cowsay, and rainbow output
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need fortune cowsay || exit 0
+if command -v lolcat_m >/dev/null 2>&1; then rainbow=lolcat_m
+elif command -v lolcat >/dev/null 2>&1; then rainbow=lolcat
+else rainbow=""
+fi
+message=$(motd_run fortune -a -s) || exit 1
+cow=$(motd_run cowsay -n "$message") || exit 1
+if [[ $MOTD_COLOR == true && -n $rainbow ]]; then
+    printf '\n%s\n\n' "$cow" | motd_run "$rainbow" -f
+else
+    printf '\n%s\n\n' "$cow"
+fi

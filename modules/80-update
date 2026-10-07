@@ -1,0 +1,35 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Available updates from the existing local package cache
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+updates=""
+if command -v apt >/dev/null 2>&1; then
+    packages=$(motd_run apt list --upgradable) || exit 1
+    updates=$(awk '/upgradable/ { count++ } END { print count+0 }' <<< "$packages")
+elif command -v pacman >/dev/null 2>&1; then
+    status=0
+    packages=$(motd_run pacman -Qu) || status=$?
+    (( status <= 1 )) || exit "$status"
+    updates=$(awk 'NF { count++ } END { print count+0 }' <<< "$packages")
+elif command -v dnf >/dev/null 2>&1; then
+    status=0
+    packages=$(motd_run dnf --cacheonly --quiet check-update) || status=$?
+    (( status == 0 || status == 100 )) || exit "$status"
+    updates=$(awk 'NF >= 3 && $1 ~ /\.[[:alnum:]_]+$/ { count++ } END { print count+0 }' <<< "$packages")
+else
+    exit 0
+fi
+print_columns "Updates" "$(print_color "$updates available (cached package metadata)" \
+    "$updates" "$MOTD_UPDATE_WARN" "$MOTD_UPDATE_CRIT")"

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Private Internet Access region, addresses, and forwarded port
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need piactl || exit 0
+text=""
+for entry in "region:Region" "vpnip:VPN IP" "pubip:Public IP" "portforward:Forwarded port"; do
+    key=${entry%%:*}
+    label=${entry#*:}
+    value=$(motd_run piactl get "$key") || value=""
+    append_line text "$label: ${value:-Unavailable}"
+done
+print_columns "PIA VPN" "$text"

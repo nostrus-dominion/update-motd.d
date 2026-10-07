@@ -1,0 +1,27 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Upcoming systemd timers
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_systemd || exit 0
+records=$(motd_run systemctl --no-pager --plain --no-legend list-timers --all) || exit 1
+text=""
+count=0
+while IFS= read -r line; do
+    [[ -n $line ]] || continue
+    append_line text "$line"
+    count=$((count + 1))
+    (( count < MOTD_MAX_ITEMS )) || break
+done <<< "$records"
+print_columns "Timers" "${text:-None}"

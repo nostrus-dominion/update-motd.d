@@ -1,0 +1,40 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: RAM and swap usage with bars
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+read -r total available swap_total swap_free < <(
+    awk '
+        /^MemTotal:/ { total=$2 }
+        /^MemAvailable:/ { available=$2 }
+        /^SwapTotal:/ { swap_total=$2 }
+        /^SwapFree:/ { swap_free=$2 }
+        END { print total, available+0, swap_total+0, swap_free+0 }
+    ' "$MOTD_PROC_ROOT/meminfo"
+)
+(( total > 0 )) || exit 0
+used=$((total - available))
+percentage=$((used * 100 / total))
+text="$(human_bytes "$((used * 1024))") used / $(human_bytes "$((total * 1024))") total"
+append_line text "$(print_bar "$percentage")"
+print_columns "RAM" "$text"
+if (( swap_total > 0 )); then
+    used=$((swap_total - swap_free))
+    percentage=$((used * 100 / swap_total))
+    text="$(human_bytes "$((used * 1024))") used / $(human_bytes "$((swap_total * 1024))") total"
+    append_line text "$(print_bar "$percentage")"
+    print_columns "Swap" "$text"
+else
+    print_columns "Swap" "Not configured"
+fi

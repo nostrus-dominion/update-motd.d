@@ -1,0 +1,36 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Raspberry Pi temperature and current/history throttling flags
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need vcgencmd || exit 0
+temperature=$(motd_run vcgencmd measure_temp) || exit 1
+temperature=${temperature#temp=}
+temperature=${temperature%%\'*}
+text="$(print_color "$temperature°C" "$temperature" "$MOTD_TEMP_WARN" "$MOTD_TEMP_CRIT")"
+flags=$(motd_run vcgencmd get_throttled) || flags=""
+flags=${flags#throttled=}
+if [[ $flags =~ ^0x[0-9a-fA-F]+$ ]]; then
+    value=$((flags))
+    current=$((value & 15))
+    history=$((value & 983040))
+    if (( current )); then
+        append_line text "${CE}Current throttling / voltage flags: $flags${CN}"
+    elif (( history )); then
+        append_line text "${CW}Historical throttling / voltage flags: $flags${CN}"
+    else
+        append_line text "${CO}No throttling flags${CN}"
+    fi
+fi
+print_columns "Raspberry Pi" "$text"

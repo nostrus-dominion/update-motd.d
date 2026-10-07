@@ -1,0 +1,18 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Current logged-in sessions
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+records=$(who)
+print_columns "Logged-in users" "${records:-None}"

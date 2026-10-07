@@ -1,0 +1,30 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: ZFS pool health and detailed errors
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need zpool || exit 0
+records=$(motd_run zpool list -Ho name,health) || exit 1
+text=""
+unhealthy=false
+while read -r pool health; do
+    [[ -n $pool ]] || continue
+    case $health in ONLINE) state=healthy ;; DEGRADED|FAULTED|UNAVAIL|OFFLINE) state=degraded; unhealthy=true ;; *) state=$health ;; esac
+    append_line text "$(print_status "$pool" "$state")"
+done <<< "$records"
+print_columns "ZFS health" "$text"
+if [[ $unhealthy == true ]]; then
+    detail=$(motd_run zpool status -x) || detail="Details unavailable"
+    print_columns "" "$detail"
+fi

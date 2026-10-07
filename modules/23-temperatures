@@ -1,0 +1,34 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Temperature sensors with warning thresholds
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need sensors || exit 0
+readings=$(motd_run sensors) || exit 1
+text=""
+count=0
+while IFS=$'\t' read -r label value; do
+    [[ -n $label ]] || continue
+    append_line text "$label: $(print_color "$value°C" "$value" "$MOTD_TEMP_WARN" "$MOTD_TEMP_CRIT")"
+    count=$((count + 1))
+    (( count < MOTD_MAX_ITEMS )) || break
+done < <(awk '
+    /^[^[:space:]].*:.*[+-]?[0-9]+[.][0-9]+.*°C/ {
+        label=$0; sub(/:.*/, "", label)
+        value=$0; sub(/^[^:]*:[[:space:]]*[+]?/, "", value)
+        sub(/[^0-9.-].*/, "", value)
+        if (value ~ /^-?[0-9]+[.][0-9]+$/) print label "\t" value
+    }
+' <<< "$readings")
+print_columns "Temperatures" "$text"

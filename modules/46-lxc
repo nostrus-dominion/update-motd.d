@@ -1,0 +1,37 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Classic LXC container state
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need lxc-info lxc-ls || exit 0
+names=("${MOTD_LXC_CONTAINERS[@]}")
+if (( ${#names[@]} == 0 )); then
+    records=$(motd_run lxc-ls -1) || {
+        print_columns "LXC" "${CW}Enumeration unavailable or access denied${CN}"
+        exit 0
+    }
+    mapfile -t names <<< "$records"
+fi
+text=""; count=0
+for name in "${names[@]}"; do
+    [[ -n $name ]] || continue
+    motd_excluded "$name" && continue
+    state=$(motd_run lxc-info -n "$name" -sH 2>/dev/null) || state=unknown
+    state=${state,,}
+    [[ $MOTD_SHOW_STOPPED_CONTAINERS == true || $state == running || $state == unknown ]] || continue
+    append_line text "$(print_status "$name" "$state")"
+    count=$((count + 1))
+    (( count < MOTD_CONTAINER_LIMIT )) || break
+done
+print_columns "LXC" "${text:-No matching containers}"

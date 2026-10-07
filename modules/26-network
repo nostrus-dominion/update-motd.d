@@ -1,0 +1,32 @@
+#!/bin/bash
+
+## Version 0.4.0
+# Description: Local IPv4 and optional IPv6 addresses
+
+set -euo pipefail
+
+# Shared configuration and display functions.
+# shellcheck disable=SC1090
+source "${MOTD_FRAMEWORK:-$(dirname -- "${BASH_SOURCE[0]}")/../lib/framework.sh}"
+motd_init "${0##*/}" || {
+    status=$?
+    (( status == 1 )) && exit 0
+    exit "$status"
+}
+
+motd_need ip || exit 0
+text=""
+families=(-4)
+[[ $MOTD_NETWORK_IPV6 != true ]] || families+=(-6)
+for family in "${families[@]}"; do
+    records=$(motd_run ip -o "$family" addr show scope global) || exit 1
+    while read -r index interface kind address rest; do
+        [[ -n $interface ]] || continue
+        interface=${interface%%@*}
+        if (( ${#MOTD_NETWORK_INTERFACES[@]} )); then
+            motd_contains "$interface" "${MOTD_NETWORK_INTERFACES[@]}" || continue
+        fi
+        append_line text "$interface: $address"
+    done <<< "$records"
+done
+print_columns "Network" "${text:-No matching global addresses}"
